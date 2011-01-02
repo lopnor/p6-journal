@@ -1,0 +1,15 @@
+use v6;
+use Journal;
+use Plackdo::Builder;
+use Plackdo::Middleware::Static;
+
+my $j = Journal.new;
+
+Plackdo::Middleware::Static.new(
+    root => '.',
+    path => rx{ ^ '/static/' },
+).wrap($j.webapp);
+#$b.to_app($j.webapp);
+#$j.webapp;
+
+# vim: ft=perl6
