@@ -17,16 +17,16 @@ class Journal {
         my $req = Plackdo::Request.new(|%env);
         my $body = '';
         given ($req.uri.path) {
-            when m{^\/entry\/$<id>=(\d+)$} {
+            when m{^ '/entry/' $<id>=(\d+) $} {
                 $body = self.show($/<id>);
             }
-#            when m{^\/writer\/$<id>=(\d+)?$} {
+#            when m{^ '/writer/' $<id>=(\d+)? $} {
 #
 #            }
-            when m{^\/page\/$<page>=(\d+)$} {
+            when m{^ '/page/' $<page>=(\d+) $} {
                 $body = self.page($/<page>);
             }
-            when m{^\/$} {
+            when m{^ '/' $} {
                 $body = self.page(1);
             }
             default {
@@ -37,7 +37,7 @@ class Journal {
         return [
             200, 
             [
-                Content-Type => 'text/html; charset=utf8', 
+                Content-Type => 'text/html; charset=utf-8', 
                 Content-Length => $body.bytes
             ], 
             [$body]
@@ -74,8 +74,8 @@ class Journal {
     }
 
     method format_entry ($row) {
-        my $body = decode($row<body>);
-        my $subject = decode($row<subject>);
+        my $body = $row<body>.encode.decode;
+        my $subject = $row<subject>.encode.decode;
         my $d = DateTime.new($row<posted_at>.Int);
 
         return div({'class' => 'entry hentry'},

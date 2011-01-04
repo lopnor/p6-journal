@@ -1,10 +1,6 @@
 use v6;
 
 module Formatter {
-    sub decode ($str) is export {
-        Buf.new($str.comb>>.ord).decode;
-    }
-
     sub div(%attr?, *@str) is export { tag('div', %attr, @str) }
     sub a(%attr, *@str) is export { tag('a', %attr, @str) }
     sub h1(%attr?, *@str) is export { tag('h1', %attr, @str) }
