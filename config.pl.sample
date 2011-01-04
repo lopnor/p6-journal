@@ -1,0 +1,21 @@
+use v6;
+
+# this is sample for config.pl
+# you can use this with 
+#
+# $ mv config.pl{.sample,}
+# $ plackdup
+
+{
+    database => [
+        'MiniDBI:mysql:database=journal;host=127.0.0.1',
+        'root',
+        ''
+    ],
+    static => {
+        root => '.',
+        path => rx{ ^ '/static' }
+    }
+}
+
+# vim: ft=perl6

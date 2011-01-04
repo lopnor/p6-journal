@@ -3,13 +3,15 @@ use Journal;
 use Plackdo::Builder;
 use Plackdo::Middleware::Static;
 
-my $j = Journal.new;
+my $conf = eval slurp 'config.pl';
+$conf or die 'invalid config';
 
-Plackdo::Middleware::Static.new(
-    root => '.',
-    path => rx{ ^ '/static/' },
-).wrap($j.webapp);
-#$b.to_app($j.webapp);
-#$j.webapp;
+my $j = Journal.new($conf<database>);
+
+my $b = Plackdo::Builder.new;
+$b.add_middleware(
+    Plackdo::Middleware::Static.new(|$conf<static>)
+);
+$b.to_app($j.webapp);
 
 # vim: ft=perl6

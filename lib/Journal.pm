@@ -44,14 +44,9 @@ class Journal {
         ];
 
     }
-    
-    multi method new {
-        my $dbh = MiniDBI.connect(
-            'MiniDBI:mysql:database=journal;host=127.0.0.1',
-            'root',
-            '',
-            :RaiseError
-        );
+
+    multi method new ($in) {
+        my $dbh = MiniDBI.connect(|$in, :RaseError);
         $dbh.do('set names utf8');
         self.bless(
             *,
@@ -68,7 +63,7 @@ class Journal {
     }
     
     method page ($page) {
-        my $per_page = 5;
+        my $per_page = 2;
         my $body = '';
         my $sth = $!dbh.prepare('select * from entry order by id desc limit ?,?');
         $sth.execute($per_page * ($page - 1), $per_page);
