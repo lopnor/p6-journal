@@ -6,7 +6,7 @@ use Plackdo::Middleware::Static;
 my $conf = eval slurp 'config.pl';
 $conf or die 'invalid config';
 
-my $j = Journal.new($conf<database>);
+my $j = Journal.new(|$conf<database>);
 
 my $b = Plackdo::Builder.new;
 $b.add_middleware(
