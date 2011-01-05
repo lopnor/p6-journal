@@ -6,6 +6,12 @@ class Journal {
     use Plackdo::Request;
 
     has $!dbh;
+    has $!log;
+
+    method !log (Str $str?) {
+        $!log or return;
+        $!log.say(now.x ~ "\t$str");
+    }
 
     method webapp {
         sub (%env) {
@@ -14,6 +20,7 @@ class Journal {
     }
 
     method handle_request (%env) {
+        self!log("handle_request");
         my $req = Plackdo::Request.new(|%env);
         my $body = '';
         given ($req.uri.path) {
@@ -34,7 +41,7 @@ class Journal {
             }
         }
 
-        return [
+        my $ret = [
             200, 
             [
                 Content-Type => 'text/html; charset=utf-8', 
@@ -42,15 +49,17 @@ class Journal {
             ], 
             [$body]
         ];
-
+        self!log("handle_request end");
+        return $ret;
     }
 
-    multi method new ($in) {
-        my $dbh = MiniDBI.connect(|$in, :RaseError);
+    multi method new (*@in, :$log? ) {
+        my $dbh = MiniDBI.connect(|@in, :RaseError);
         $dbh.do('set names utf8');
         self.bless(
             *,
-            dbh => $dbh
+            dbh => $dbh,
+            log => $log,
         );
     }
 
@@ -74,7 +83,12 @@ class Journal {
     }
 
     method format_entry ($row) {
-        my $body = $row<body>.encode.decode;
+        self!log('before encode');
+        my $e = $row<body>.encode;
+        self!log('before decode');
+        my $body = $e.decode;
+        self!log('after decode');
+        # my $body = $row<body>.encode.decode;
         my $subject = $row<subject>.encode.decode;
         my $d = DateTime.new($row<posted_at>.Int);
 
