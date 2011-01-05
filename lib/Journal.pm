@@ -83,13 +83,10 @@ class Journal {
     }
 
     method format_entry ($row) {
-        self!log('before encode');
-        my $e = $row<body>.encode;
         self!log('before decode');
-        my $body = $e.decode;
+        my $body = self.decode($row<body>);
+        my $subject = self.decode($row<subject>);
         self!log('after decode');
-        # my $body = $row<body>.encode.decode;
-        my $subject = $row<subject>.encode.decode;
         my $d = DateTime.new($row<posted_at>.Int);
 
         return div({'class' => 'entry hentry'},
@@ -131,6 +128,24 @@ class Journal {
 
     method format_body ($body, $formatter) {
         return $body.subst(/\n/, '<br />');
+    }
+
+    method decode ($str, $encoding = 'utf8') {
+        my $ret = ~Q:PIR {
+            .local pmc bb
+            .local string s
+
+            $P0 = find_lex '$str'
+            $S0 = $P0
+            bb = new ['ByteBuffer']
+            bb = $S0
+
+            $P1 = find_lex '$encoding'
+            $S1 = $P1
+            s = bb.'get_string'($S1)
+            %r = box s
+        };
+        return $ret;
     }
 }
 
