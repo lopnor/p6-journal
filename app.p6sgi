@@ -1,6 +1,7 @@
 use v6;
 use Journal;
 use Plackdo::Builder;
+use Plackdo::Middleware::Runtime;
 use Plackdo::Middleware::Static;
 
 my $conf = eval slurp 'config.pl';
@@ -9,9 +10,8 @@ $conf or die 'invalid config';
 my $j = Journal.new(|$conf<database>);
 
 my $b = Plackdo::Builder.new;
-$b.add_middleware(
-    Plackdo::Middleware::Static.new(|$conf<static>)
-);
+$b.add_middleware( Plackdo::Middleware::Runtime.new );
+$b.add_middleware( Plackdo::Middleware::Static.new(|$conf<static>) );
 $b.to_app($j.webapp);
 
 # vim: ft=perl6

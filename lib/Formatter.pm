@@ -10,7 +10,7 @@ module Formatter {
     our sub body(*@str) is export  { tag('body', {}, @str) }
     our sub link(%attr) is export  { tag('link', %attr) }
     sub title(*@str) is export  { tag('title', {}, @str) }
-    sub meta(%attr) is export  { tag('meta', %attr, '') }
+    sub meta(%attr) is export  { tag('meta', %attr) }
 
     sub tag($tagname, %attr?, *@str) {
         my $ret = "<$tagname";
@@ -18,9 +18,9 @@ module Formatter {
             $ret ~= ' ' ~ $p.key ~ '="' ~ $p.value ~ '"';
         }
         if (+@str) {
-            $ret ~= '>' ~ [~]@str ~ "</$tagname>";
+            $ret ~= '>' ~ [~]@str ~ "</$tagname>\n";
         } else {
-            $ret ~= ' />';
+            $ret ~= " />\n";
         }
         return $ret;
     }
