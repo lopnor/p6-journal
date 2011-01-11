@@ -126,7 +126,7 @@ class Journal {
             return self.redirect('/');
         } else {
             if $id {
-                my $sth = $!dbh.prepare('update entry (subject, body) values (?, ?) where id = ?');
+                my $sth = $!dbh.prepare('update entry set subject = ?, body = ? where id = ?');
                 $sth.execute($req.param('subject'), $req.param('body'), $id);
             } else {
                 my $sth = $!dbh.prepare('insert into entry (subject, body, posted_at) values (?, ?, ?)');
