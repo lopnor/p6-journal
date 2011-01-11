@@ -3,6 +3,8 @@ use Journal;
 use Plackdo::Builder;
 use Plackdo::Middleware::Runtime;
 use Plackdo::Middleware::Static;
+use Plackdo::Middleware::Auth::Basic;
+use Plackdo::Middleware::Conditional;
 
 my $conf = eval slurp 'config.pl';
 $conf or die 'invalid config';
@@ -10,6 +12,16 @@ $conf or die 'invalid config';
 my $j = Journal.new(|$conf<database>);
 
 my $b = Plackdo::Builder.new;
+$b.add_middleware( 
+    Plackdo::Middleware::Conditional.new(
+        middleware => Plackdo::Middleware::Auth::Basic.new(
+            authenticator => sub ($user, $pass, %env) {
+                ($user eq $conf<auth><name>) && ($pass eq $conf<auth><password>)
+            }
+        ),
+        condition => sub (%env) {%env<PATH_INFO> ~~ m{ ^ '/writer' } }
+    )
+);
 $b.add_middleware( Plackdo::Middleware::Static.new(|$conf<static>) );
 $b.add_middleware( Plackdo::Middleware::Runtime.new );
 $b.to_app($j.webapp);

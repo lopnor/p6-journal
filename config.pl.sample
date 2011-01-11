@@ -15,6 +15,10 @@ use v6;
     static => {
         root => '.',
         path => rx{ ^ '/static' }
+    },
+    auth => {
+        name => 'yourname',
+        password => 'password',
     }
 }
 
