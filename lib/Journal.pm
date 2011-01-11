@@ -182,8 +182,13 @@ class Journal {
         return self.make_response($enclosed);
     }
 
-    method format_body ($body, $formatter) {
-        return $body.subst(/\n/, '<br />', :g);
+    method format_body ($body is copy, $formatter) {
+        $body ~~ s:g[\&] = '&amp;';
+        $body ~~ s:g[\"] = '&quot;';
+        $body ~~ s:g[\>] = '&gt;';
+        $body ~~ s:g[\<] = '&lt;';
+        $body ~~ s:g[\n] = '<br />';
+        return $body;
     }
 
     method decode ($str, $encoding = 'utf8') {
