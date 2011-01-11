@@ -22,33 +22,27 @@ class Journal {
     method handle_request (%env) {
         self!log("handle_request");
         my $req = Plackdo::Request.new(|%env);
-        my $body = '';
+        my $ret;
         given ($req.uri.path) {
             when m{^ '/entry/' $<id>=(\d+) $} {
-                $body = self.show($/<id>);
+                $ret = self.show($/<id>);
             }
-#            when m{^ '/writer/' $<id>=(\d+)? $} {
-#
-#            }
+            when m{^ '/writer' [ '/' $<id>=(\d+) ]? $} {
+                my $method = "writer_" ~ $req.request_method.lc;
+                $ret = self."$method"($/<id>, $req);
+            }
             when m{^ '/page/' $<page>=(\d+) $} {
-                $body = self.page($/<page>);
+                $ret = self.page($/<page>);
             }
             when m{^ '/' $} {
-                $body = self.page(1);
+                $ret = self.page(1);
             }
             default {
-                return [404, [Content-Type => 'text/plain'], ['404 not found']];
+                $ret = self.not_found;
             }
         }
+        $ret //= [400, [Content-Type => 'text/plain'], ['bad request']];
 
-        my $ret = [
-            200, 
-            [
-                Content-Type => 'text/html; charset=utf-8', 
-                Content-Length => $body.bytes
-            ], 
-            [$body]
-        ];
         self!log("handle_request end");
         return $ret;
     }
@@ -63,11 +57,30 @@ class Journal {
         );
     }
 
+    method not_found {
+        [404, [Content-Type => 'text/plain'], ['404 not found']];
+    }
+    method redirect ($uri) {
+        [302, [Location => $uri], []];
+    }
+
+    method make_response ($str) {
+        return [
+            200, 
+            [
+                Content-Type => 'text/html; charset=utf-8', 
+                Content-Length => $str.bytes
+            ], 
+            [$str]
+        ];
+    }
+
     method show ($id) {
         my $sth = $!dbh.prepare('select * from entry where id = ?');
         $sth.execute($id);
         my $row = $sth.fetchrow_hashref();
         $sth.finish;
+        unless $row { return self.not_found; }
         return self.enclose( self.format_entry($row) );
     }
     
@@ -79,7 +92,49 @@ class Journal {
         while $sth.fetchrow_hashref() -> $row {
             $body ~= self.format_entry($row);
         }
+        unless $body { return self.not_found; } 
         return self.enclose($body);
+    }
+
+    method writer_get ($id, $req) {
+        my $subject = '';
+        my $body = '';
+        if $id {
+            my $sth = $!dbh.prepare('select * from entry where id = ?');
+            $sth.execute($id);
+            my $row = $sth.fetchrow_hashref;
+            $sth.finish;
+            $row or return self.redirect('/writer');
+            $body = self.decode($row<body>);
+            $subject = self.decode($row<subject>);
+        }
+        my $form = div( {},
+                form({'method' => 'POST'},
+                input({id => 'form_subject', type => 'text', name => 'subject', value => $subject}),
+                Formatter::textarea({id => 'form_body', name => 'body'}, $body),
+                input({type => 'submit', value => 'post this entry'}),
+                input({type => 'submit', name => 'delete', value => 'delete'}),
+            )
+        );
+        return self.enclose($form);
+    }
+
+    method writer_post ($id is copy, $req) {
+        if $req.param('delete') {
+            my $sth = $!dbh.prepare('delete from entry where id = ?');
+            $sth.execute($id);
+            return self.redirect('/');
+        } else {
+            if $id {
+                my $sth = $!dbh.prepare('update entry (subject, body) values (?, ?) where id = ?');
+                $sth.execute($req.param('subject'), $req.param('body'), $id);
+            } else {
+                my $sth = $!dbh.prepare('insert into entry (subject, body, posted_at) values (?, ?, ?)');
+                $sth.execute($req.param('subject'), $req.param('body'), time);
+                $id = $sth.mysql_insertid;
+            }
+            return self.redirect('/entry/' ~ $id);
+        }
     }
 
     method format_entry ($row) {
@@ -99,7 +154,7 @@ class Journal {
     }
 
     method enclose ($body) {
-        return html(
+        my $enclosed = html(
             head(
                 title('soffritto::journal'),
                 meta({http-equiv => 'Content-Type', value => 'text/html; charset=utf8'}),
@@ -124,10 +179,11 @@ class Journal {
                 div({id => 'footer', 'class' => 'autopagerize_insert_before'}, '')
             )
         );
+        return self.make_response($enclosed);
     }
 
     method format_body ($body, $formatter) {
-        return $body.subst(/\n/, '<br />');
+        return $body.subst(/\n/, '<br />', :g);
     }
 
     method decode ($str, $encoding = 'utf8') {

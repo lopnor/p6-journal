@@ -11,6 +11,9 @@ module Formatter {
     our sub link(%attr) is export  { tag('link', %attr) }
     sub title(*@str) is export  { tag('title', {}, @str) }
     sub meta(%attr) is export  { tag('meta', %attr) }
+    sub form(%attr, *@str) is export { tag('form', %attr, @str) } 
+    sub input(%attr) is export { tag('input', %attr) } 
+    our sub textarea(%attr, *@str) is export { tag('textarea', %attr, @str) } 
 
     sub tag($tagname, %attr?, *@str) {
         my $ret = "<$tagname";
