@@ -48,7 +48,7 @@ class Journal {
     }
 
     multi method new (*@in, :$log? ) {
-        my $dbh = MiniDBI.connect(|@in, :RaseError);
+        my $dbh = MiniDBI.connect(|@in, :RaiseError);
         $dbh.do('set names utf8');
         self.bless(
             *,
