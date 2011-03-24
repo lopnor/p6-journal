@@ -50,6 +50,7 @@ class Journal {
     multi method new (*@in, :$log? ) {
         my $dbh = MiniDBI.connect(|@in, :RaiseError)
             or die "dbh not available";
+        $dbh.do('set names utf8');
         self.bless(
             *,
             dbh => $dbh,
