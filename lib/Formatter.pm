@@ -16,7 +16,7 @@ module Formatter {
     our sub textarea(%attr, *@str) is export { tag('textarea', %attr, @str) } 
 
     sub tag($tagname, %attr?, *@str) {
-        my $ret = "<$tagname";
+        my $ret = '<' ~ $tagname;
         for %attr.pairs -> $p {
             $ret ~= ' ' ~ $p.key ~ '="' ~ $p.value ~ '"';
         }

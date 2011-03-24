@@ -16,7 +16,7 @@ ok 1;
         '<h1 class="hoge" id="fuga">hoge</h1>';
 }
 
-done_testing;
+done;
 
 # vim: ft=perl6 :
 

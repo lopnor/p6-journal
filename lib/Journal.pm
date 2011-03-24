@@ -9,7 +9,7 @@ class Journal {
     has $!log;
 
     method !log (Str $str?) {
-        $!log or return;
+        defined $!log or return;
         $!log.say(now.x ~ "\t$str");
     }
 
@@ -48,8 +48,8 @@ class Journal {
     }
 
     multi method new (*@in, :$log? ) {
-        my $dbh = MiniDBI.connect(|@in, :RaiseError);
-        $dbh.do('set names utf8');
+        my $dbh = MiniDBI.connect(|@in, :RaiseError)
+            or die "dbh not available";
         self.bless(
             *,
             dbh => $dbh,
@@ -160,7 +160,7 @@ class Journal {
                 meta({http-equiv => 'Content-Type', value => 'text/html; charset=utf8'}),
                 Formatter::link({
                     rel => 'shortcut icon', 
-                    href => 'http://soffritto.org/images/favicon.ico'
+                    href => '/static/favicon.ico',
                 }),
                 Formatter::link({
                     rel => 'stylesheet', 
