@@ -8,13 +8,14 @@ sub MAIN ( $uri = '/' ) {
     my $log = IO.new.open('profile.log', :w);
     my $j = Journal.new(|$conf<database>, log => $log );
 
-    $Plackdo::Test::Impl = 'Standalone';
+#    $Plackdo::Test::Impl = 'Standalone';
 
     test_p6sgi(
         $j.webapp,
         sub (&cb) {
             my $req = new_request('GET', $uri);
             my $res = &cb($req);
+            say $res.content;
         }
     );
 

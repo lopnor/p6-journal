@@ -4,6 +4,7 @@ class Journal {
     use MiniDBI;
     use Formatter;
     use Plackdo::Request;
+    use Journal::RSS;
 
     has $!dbh;
     has $!log;
@@ -29,13 +30,16 @@ class Journal {
             }
             when m{^ '/writer' [ '/' $<id>=(\d+) ]? $} {
                 my $method = "writer_" ~ $req.request_method.lc;
-                $ret = self."$method"($/<id>, $req);
+                $ret = self."$method"($/<id>);
             }
             when m{^ '/page/' $<page>=(\d+) $} {
                 $ret = self.page($/<page>);
             }
             when m{^ '/' $} {
                 $ret = self.page(1);
+            }
+            when m{^ '/feed' $} {
+                $ret = self.feed($req);
             }
             default {
                 $ret = self.not_found;
@@ -138,6 +142,40 @@ class Journal {
         }
     }
 
+    method feed ($req) {
+        self!log('here');
+        my $sth = $!dbh.prepare(
+            'select * from entry order by id desc limit ?,?'
+        );
+        $sth.execute(0, 5);
+        my $rss = Journal::RSS.new(
+            :channel('soffritto::journal'),
+            :link(''),
+            :description('soffritto::journal by Nobuo Danjou')
+        );
+        my $uri = $req.uri.clone;
+        say $uri;
+
+        while $sth.fetchrow_hashref() -> $row {
+            my $entry = Journal::RSS::Entry.new(
+                title => self.decode($row<subject>),
+                issued => $row<posted_at>.Int,
+                link => 'http://journal.soffritto.org/entry/' ~ $row<id>,
+                content => self.format_body(self.decode($row<body>), $row<format>)
+            );
+            $rss.add_entry($entry);
+        }
+        my $str = $rss.as_xml;
+        return [
+            200,
+            [
+                Content-Type => 'application/rss+xml; charset=utf-8',
+                Content-Length => $str.bytes,
+            ],
+            [$str]
+        ];
+    }
+
     method format_entry ($row) {
         self!log('before decode');
         my $body = self.decode($row<body>);
@@ -162,6 +200,12 @@ class Journal {
                 Formatter::link({
                     rel => 'shortcut icon', 
                     href => '/static/favicon.ico',
+                }),
+                Formatter::link({
+                    rel => 'alternate',
+                    type => 'application/rss+xml',
+                    title => 'RSS',
+                    href => '/feed',
                 }),
                 Formatter::link({
                     rel => 'stylesheet', 
