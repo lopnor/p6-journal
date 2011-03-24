@@ -30,7 +30,7 @@ class Journal {
             }
             when m{^ '/writer' [ '/' $<id>=(\d+) ]? $} {
                 my $method = "writer_" ~ $req.request_method.lc;
-                $ret = self."$method"($/<id>);
+                $ret = self."$method"($/<id>, $req);
             }
             when m{^ '/page/' $<page>=(\d+) $} {
                 $ret = self.page($/<page>);
@@ -39,7 +39,7 @@ class Journal {
                 $ret = self.page(1);
             }
             when m{^ '/feed' $} {
-                $ret = self.feed($req);
+                $ret = self.feed;
             }
             default {
                 $ret = self.not_found;
@@ -142,7 +142,7 @@ class Journal {
         }
     }
 
-    method feed ($req) {
+    method feed {
         self!log('here');
         my $sth = $!dbh.prepare(
             'select * from entry order by id desc limit ?,?'
@@ -153,8 +153,6 @@ class Journal {
             :link(''),
             :description('soffritto::journal by Nobuo Danjou')
         );
-        my $uri = $req.uri.clone;
-        say $uri;
 
         while $sth.fetchrow_hashref() -> $row {
             my $entry = Journal::RSS::Entry.new(
