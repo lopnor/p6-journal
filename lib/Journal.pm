@@ -86,7 +86,7 @@ class Journal {
     }
     
     method page ($page) {
-        my $per_page = 2;
+        my $per_page = 5;
         my $body = '';
         my $sth = $!dbh.prepare('select * from entry order by id desc limit ?,?');
         $sth.execute($per_page * ($page - 1), $per_page);
