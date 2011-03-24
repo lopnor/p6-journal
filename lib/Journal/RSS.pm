@@ -13,7 +13,7 @@ class Journal::RSS::Entry {
             title => [$.title],
             link => [$.link],
             guid => [:isPermaLink('true'), $.link],
-            pudDate => [$date],
+            pubDate => [$date],
             'content:encoded' => [$.content],
         ];
         return $item;

@@ -150,7 +150,7 @@ class Journal {
         $sth.execute(0, 5);
         my $rss = Journal::RSS.new(
             :channel('soffritto::journal'),
-            :link(''),
+            :link('http://journal.soffritto.org/'),
             :description('soffritto::journal by Nobuo Danjou')
         );
 
