@@ -2,8 +2,9 @@ use v6;
 
 class Journal {
     use MiniDBI;
-    use Formatter;
     use Plackdo::Request;
+    use Journal::Util;
+    use Journal::HTML;
     use Journal::RSS;
 
     has $!dbh;
@@ -69,11 +70,11 @@ class Journal {
         [302, [Location => $uri], []];
     }
 
-    method make_response ($str) {
+    method make_response ($str, $type = 'text/html; charset=utf-8') {
         return [
             200, 
             [
-                Content-Type => 'text/html; charset=utf-8', 
+                Content-Type => $type, 
                 Content-Length => $str.bytes
             ], 
             [$str]
@@ -86,19 +87,25 @@ class Journal {
         my $row = $sth.fetchrow_hashref();
         $sth.finish;
         unless $row { return self.not_found; }
-        return self.enclose( self.format_entry($row) );
+        return self.make_response(
+            Journal::HTML.enclose(
+                Journal::HTML.format_entry($row)
+            )
+        );
     }
     
     method page ($page) {
         my $per_page = 5;
-        my $body = '';
         my $sth = $!dbh.prepare('select * from entry order by id desc limit ?,?');
         $sth.execute($per_page * ($page - 1), $per_page);
+        my @entries;
         while $sth.fetchrow_hashref() -> $row {
-            $body ~= self.format_entry($row);
+            @entries.push( Journal::HTML.format_entry($row) );
         }
-        unless $body { return self.not_found; } 
-        return self.enclose($body);
+        unless @entries { return self.not_found; } 
+        return self.make_response(
+            Journal::HTML.enclose(@entries)
+        ); 
     }
 
     method writer_get ($id, $req) {
@@ -110,18 +117,12 @@ class Journal {
             my $row = $sth.fetchrow_hashref;
             $sth.finish;
             $row or return self.redirect('/writer');
-            $body = self.decode($row<body>);
-            $subject = self.decode($row<subject>);
+            $body = Journal::Util.decode($row<body>);
+            $subject = Journal::Util.decode($row<subject>);
         }
-        my $form = div( {},
-                form({'method' => 'POST'},
-                input({id => 'form_subject', type => 'text', name => 'subject', value => $subject}),
-                Formatter::textarea({id => 'form_body', name => 'body'}, $body),
-                input({type => 'submit', value => 'post this entry'}),
-                input({type => 'submit', name => 'delete', value => 'delete'}),
-            )
+        return self.make_response(
+            Journal::HTML.show_form($subject, $body)
         );
-        return self.enclose($form);
     }
 
     method writer_post ($id is copy, $req) {
@@ -149,108 +150,27 @@ class Journal {
         );
         $sth.execute(0, 5);
         my $rss = Journal::RSS.new(
-            :channel('soffritto::journal'),
-            :link('http://journal.soffritto.org/'),
-            :description('soffritto::journal by Nobuo Danjou')
+            channel => 'soffritto::journal',
+            link => 'http://journal.soffritto.org/',
+            description => 'soffritto::journal by Nobuo Danjou',
         );
 
         while $sth.fetchrow_hashref() -> $row {
             my $entry = Journal::RSS::Entry.new(
-                title => self.decode($row<subject>),
+                title => Journal::Util.decode($row<subject>),
                 issued => $row<posted_at>.Int,
                 link => 'http://journal.soffritto.org/entry/' ~ $row<id>,
-                content => self.format_body(self.decode($row<body>), $row<format>)
+                content => Journal::HTML.format_body(
+                    Journal::Util.decode($row<body>), 
+                    $row<format>
+                )
             );
             $rss.add_entry($entry);
         }
         my $str = $rss.as_xml;
-        return [
-            200,
-            [
-                Content-Type => 'application/rss+xml; charset=utf-8',
-                Content-Length => $str.bytes,
-            ],
-            [$str]
-        ];
+        return self.make_response($str, 'application/rss+xml; charset=utf-8');
     }
 
-    method format_entry ($row) {
-        self!log('before decode');
-        my $body = self.decode($row<body>);
-        my $subject = self.decode($row<subject>);
-        self!log('after decode');
-        my $d = DateTime.new($row<posted_at>.Int);
-
-        return div({'class' => 'entry hentry'},
-            h2({'class' => 'subject entry-title'}, 
-                a({rel => 'bookmark', href => '/entry/'~ $row<id>}, $subject )
-            ),
-            div({'class' => 'updated'}, $d.Str),
-            div({'class' => 'entry-content markdown'}, self.format_body($body, $row<format>) )
-        );
-    }
-
-    method enclose ($body) {
-        my $enclosed = html(
-            head(
-                title('soffritto::journal'),
-                meta({http-equiv => 'Content-Type', value => 'text/html; charset=utf8'}),
-                Formatter::link({
-                    rel => 'shortcut icon', 
-                    href => '/static/favicon.ico',
-                }),
-                Formatter::link({
-                    rel => 'alternate',
-                    type => 'application/rss+xml',
-                    title => 'RSS',
-                    href => '/feed',
-                }),
-                Formatter::link({
-                    rel => 'stylesheet', 
-                    media => 'screen',
-                    type => 'text/css',
-                    href => '/static/style.css'
-                }),
-            ),
-            Formatter::body(
-                div({id => 'header'},
-                    h1({'class' => 'title'}, 
-                        a({href => '/'}, 'soffritto::journal')
-                    )
-                ),
-                div({id => 'main', 'class' => 'autopagerize_page_element'}, $body),
-                div({id => 'footer', 'class' => 'autopagerize_insert_before'}, '')
-            )
-        );
-        return self.make_response($enclosed);
-    }
-
-    method format_body ($body is copy, $formatter) {
-        $body ~~ s:g[\&] = '&amp;';
-        $body ~~ s:g[\"] = '&quot;';
-        $body ~~ s:g[\>] = '&gt;';
-        $body ~~ s:g[\<] = '&lt;';
-        $body ~~ s:g[\n] = '<br />';
-        return $body;
-    }
-
-    method decode ($str, $encoding = 'utf8') {
-        my $ret = ~Q:PIR {
-            .local pmc bb
-            .local string s
-
-            $P0 = find_lex '$str'
-            $S0 = $P0
-            bb = new ['ByteBuffer']
-            bb = $S0
-
-            $P1 = find_lex '$encoding'
-            $S1 = $P1
-            s = bb.'get_string'($S1)
-            %r = box s
-        };
-        return $ret;
-    }
 }
 
 # vim: ft=perl6 :
