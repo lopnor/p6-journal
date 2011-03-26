@@ -82,14 +82,21 @@ class Journal {
     }
 
     method show ($id) {
-        my $sth = $!dbh.prepare('select * from entry where id = ?');
-        $sth.execute($id);
+        my $sth = $!dbh.prepare('select * from entry where id <= ? order by id desc limit ?');
+        $sth.execute($id, 2);
         my $row = $sth.fetchrow_hashref();
-        $sth.finish;
         unless $row { return self.not_found; }
+        my $pager;
+        try {
+            if my $row = $sth.fetchrow_hashref() {
+                $pager = Journal::HTML.pager('/entry/' ~ $row<id> );
+            }
+        }
+        $sth.finish;
         return self.make_response(
             Journal::HTML.enclose(
-                Journal::HTML.format_entry($row)
+                Journal::HTML.format_entry($row),
+                $pager
             )
         );
     }
@@ -97,11 +104,18 @@ class Journal {
     method page ($page) {
         my $per_page = 5;
         my $sth = $!dbh.prepare('select * from entry order by id desc limit ?,?');
-        $sth.execute($per_page * ($page - 1), $per_page);
+        $sth.execute(($per_page + 1) * ($page - 1), ($per_page + 1));
         my @entries;
-        while $sth.fetchrow_hashref() -> $row {
+        for (1 .. $per_page) {
+            my $row = $sth.fetchrow_hashref() or last;
             @entries.push( Journal::HTML.format_entry($row) );
         }
+        try {
+            if $sth.fetchrow_hashref() {
+                @entries.push( Journal::HTML.pager('/page/' ~ $page + 1) );
+            }
+        }
+        $sth.finish;
         unless @entries { return self.not_found; } 
         return self.make_response(
             Journal::HTML.enclose(@entries)

@@ -27,7 +27,7 @@ class Journal::HTML {
             ],
             div => [
                 :class('entry-content markdown'),
-                self.format_body($body, $row<format>)
+                self.build_body($body, $row<format>)
             ]
         ];
         return $entry;
@@ -49,6 +49,14 @@ class Journal::HTML {
             ]
         ];
         return self.enclose($form);
+    }
+
+    method pager ($url) {
+        my $pager = div => [
+            :class('pager'),
+            a => [:rel('next'), :href($url), 'next'],
+        ];
+        return $pager;
     }
 
     method enclose ( *@body ) {
@@ -86,7 +94,7 @@ class Journal::HTML {
                     ],
                 ],
                 div => [
-                    :id('main'), :class('autopagerize_page_element'),
+                    :id('main'), :class('autopagerize_page_element hfeed'),
                     @body,
                 ],
                 div => [
@@ -98,11 +106,12 @@ class Journal::HTML {
         return XML::Writer.serialize($enclosed);
     }
 
-    method format_body ($body is copy, $formatter) {
-        $body ~~ s:g[\&] = '&amp;';
-        $body ~~ s:g[\"] = '&quot;';
-        $body ~~ s:g[\>] = '&gt;';
-        $body ~~ s:g[\<] = '&lt;';
+    method format_body ($body, $formatter) {
+        my $obj = div => self.build_body($body, $formatter);
+        return XML::Writer.serialize($obj);
+    }
+
+    method build_body ($body is copy, $formatter) {
         my @lines = $body.split("\n");
         my $br = br => [];
         my @arr;
