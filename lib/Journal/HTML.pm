@@ -2,15 +2,14 @@ use v6;
 
 class Journal::HTML {
     use XML::Writer;
-    use Journal::Util;
 
     method show_entry($row) {
         return self.enclose(self.format_entry($row));
     }
 
     method format_entry ($row) {
-        my $body = Journal::Util.decode($row<body>);
-        my $subject = Journal::Util.decode($row<subject>);
+        my $body = $row<body>;
+        my $subject = $row<subject>;
         my $d = DateTime.new($row<posted_at>.Int);
         my $entry = div => [ 
             :class('entry hentry'),

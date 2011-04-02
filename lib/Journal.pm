@@ -3,7 +3,6 @@ use v6;
 class Journal {
     use MiniDBI;
     use Plackdo::Request;
-    use Journal::Util;
     use Journal::HTML;
     use Journal::RSS;
 
@@ -92,7 +91,6 @@ class Journal {
                 $pager = Journal::HTML.pager('/entry/' ~ $row<id> );
             }
         }
-        $sth.finish;
         return self.make_response(
             Journal::HTML.enclose(
                 Journal::HTML.format_entry($row),
@@ -115,7 +113,6 @@ class Journal {
                 @entries.push( Journal::HTML.pager('/page/' ~ $page + 1) );
             }
         }
-        $sth.finish;
         unless @entries { return self.not_found; } 
         return self.make_response(
             Journal::HTML.enclose(@entries)
@@ -129,10 +126,9 @@ class Journal {
             my $sth = $!dbh.prepare('select * from entry where id = ?');
             $sth.execute($id);
             my $row = $sth.fetchrow_hashref;
-            $sth.finish;
             $row or return self.redirect('/writer');
-            $body = Journal::Util.decode($row<body>);
-            $subject = Journal::Util.decode($row<subject>);
+            $body = $row<body>;
+            $subject = $row<subject>;
         }
         return self.make_response(
             Journal::HTML.show_form($subject, $body)
@@ -171,11 +167,11 @@ class Journal {
 
         while $sth.fetchrow_hashref() -> $row {
             my $entry = Journal::RSS::Entry.new(
-                title => Journal::Util.decode($row<subject>),
+                title => $row<subject>,
                 issued => $row<posted_at>.Int,
                 link => 'http://journal.soffritto.org/entry/' ~ $row<id>,
                 content => Journal::HTML.format_body(
-                    Journal::Util.decode($row<body>), 
+                    $row<body>, 
                     $row<format>
                 )
             );
