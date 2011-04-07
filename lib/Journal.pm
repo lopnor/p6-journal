@@ -165,7 +165,7 @@ class Journal {
             description => 'soffritto::journal by Nobuo Danjou',
         );
 
-        while $sth.fetchrow_hashref() -> $row {
+        while $sth.fetchrow_hashref -> $row {
             my $entry = Journal::RSS::Entry.new(
                 title => $row<subject>,
                 issued => $row<posted_at>.Int,
